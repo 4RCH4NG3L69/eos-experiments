@@ -2,7 +2,6 @@ import torch
 from torch.optim import Optimizer
 import math
 
-
 # Mirror Descent optimizer
 class MirrorDescent(Optimizer):
     def __init__(self, params, lr=0.01, dgf='squared_l2', epsilon=1e-8):
@@ -31,12 +30,6 @@ class MirrorDescent(Optimizer):
                         state['dual'] = torch.log(torch.clamp(p.data, min=epsilon))
     
     def step(self, closure=None):
-        """Performs a single optimization step.
-        
-        Args:
-            closure (callable, optional): A closure that reevaluates the model
-                and returns the loss.
-        """
         loss = None
         if closure is not None:
             loss = closure()
@@ -68,10 +61,15 @@ class MirrorDescent(Optimizer):
                     state['dual'].add_(grad, alpha=-lr)
                     
                     # 3. Map back to the primal space: θ_{t+1} = exp(θ_dual_{t+1})
-                    p.data = torch.exp(state['dual'])
+                    # Ensure values don't explode
+                    p.data = torch.exp(torch.clamp(state['dual'], min=-88, max=88))
+                    
+                    # Normalize if necessary (for probability simplex)
+                    if hasattr(p, 'is_simplex') and p.is_simplex:
+                        p.data.div_(p.data.sum(dim=0, keepdim=True))
         
         return loss
 
-
+# Create mirror descent optimizer
 def create_mirror_descent(params, lr=0.01, dgf='squared_l2'):
     return MirrorDescent(params, lr=lr, dgf=dgf)

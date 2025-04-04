@@ -44,28 +44,6 @@ def run_experiment(
     
     **optimizer_params
 ):
-    """
-    
-    Args:
-        architecture (str): Model architecture ('fc', 'cnn', 'vgg', 'resnet', 'transformer')
-        architecture_params (dict): Architecture-specific parameters
-        dataset (str): Dataset name ('mnist', 'cifar10')
-        subset_size (int): Size of dataset subset (None for full dataset)
-        seed (int): Random seed for reproducibility
-        activation (str): Activation function ('relu', 'sigmoid', 'tanh', 'softmax', 'leaky_relu')
-        loss_type (str): Loss function ('ce' for cross-entropy, 'mse' for mean squared error)
-        init_method (str): Weight initialization method ('uniform', 'xavier', 'kaiming', 'zeros', 'ones', 'normal')
-        optimizer_type (str): Optimizer type ('gd', 'sgd', 'adam', 'mirror', 'polyak', 'nesterov')
-        learning_rate (float): Learning rate
-        batch_size (int): Batch size (None for full-batch)
-        max_iterations (int): Maximum number of iterations
-        n_eigenvalues (int): Number of top eigenvalues to compute
-        **optimizer_params: Additional optimizer-specific parameters
-    
-    Returns:
-        dict: Dictionary containing results and model
-    """
-    
     # Set random seeds for reproducibility
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -135,37 +113,34 @@ def run_experiment(
     # Training loop
     print("Starting training...")
     for iteration in range(max_iterations):
-        # Zero gradients
-        optimizer.zero_grad()
-        
         # Full batch gradient for computing loss/gradient
         total_loss = 0
         correct = 0
         total = 0
         
-        # Process batches
+        # Zero gradients
+        optimizer.zero_grad()
+        
+        # Process data (full batch or mini-batches)
         for inputs, targets in train_loader:
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = model(inputs)
             
             if loss_type.lower() == 'ce':
-                loss = criterion(outputs, targets)
+                loss = criterion(outputs, targets) * inputs.size(0) / len(train_dataset)
                 _, predicted = torch.max(outputs.data, 1)
                 correct += (predicted == targets).sum().item()
                 total += targets.size(0)
             else:  # MSE
-                loss = criterion(outputs, targets)
+                loss = criterion(outputs, targets) * inputs.size(0) / len(train_dataset)
                 _, predicted = torch.max(outputs.data, 1)
                 _, target_cls = torch.max(targets.data, 1)
                 correct += (predicted == target_cls).sum().item()
                 total += targets.size(0)
             
-            if len(train_loader) > 1:  # If using mini-batches
-                loss.backward()
-                total_loss += loss.item() * inputs.size(0)
-            else:  # Full batch
-                total_loss = loss.item() * inputs.size(0)
-                loss.backward()
+            # Accumulate loss and backpropagate
+            total_loss += loss.item() * inputs.size(0)
+            loss.backward()
         
         # Update parameters
         optimizer.step()
