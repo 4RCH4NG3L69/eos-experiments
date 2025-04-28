@@ -6,8 +6,8 @@
     * Fully connected neural networks (FCNN)
     * Convolutional neural network (CNN)
       * Visual Geometry Group (VGG)
-      * Residual neural network (ResNet)
-    * Recurrent neural network (RNN)
+      * Residual neural network (ResNet) / 
+    * Recurrent neural network (RNN) (maybe not)
     * Transformer
 2. **Activation Functions**
    * ReLU
